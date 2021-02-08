@@ -60,6 +60,8 @@ class ModelPrep:
         self.temperature    = self.data['temperature']
         self.pressure       = self.data['pressure'] #already in Pa
         self.power_measured = self.data['power'] #/1e3 # convert to MW
+        self.month          = self.data['time'].dt.month
+        self.hour           = self.data['time'].dt.hour
         
         # extra variables wind vectors
         # Convert to radians.

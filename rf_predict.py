@@ -17,9 +17,19 @@ x_wind_dir_y     = data.wind_y
 x_temperature    = data.temperature
 x_wind_speed     = data.wind_speed
 x_pressure       = data.pressure
+x_month          = data.month
+x_hour           = data.hour
 
 #keras input data, univariate input
-all_data = pd.concat([x_wind_speed,x_wind_dir_x, x_wind_dir_y,x_temperature,x_pressure ,y_power_measured], axis=1)
+all_data = pd.concat([x_wind_speed,
+                     x_wind_dir_x,
+                     x_wind_dir_y,
+                     x_temperature,
+                     x_pressure,
+                     x_hour,
+                     x_month,
+                     y_power_measured],
+                      axis=1)
 # define test and train data set
 
 def split_train_test(test_set_size=0.2,valid_set_size=0.1):
@@ -48,11 +58,11 @@ valid_set = split_train_test()[1]
 test_set  = split_train_test()[2]
 
 ## standardize X-data
-scaler = StandardScaler()
-scaler.fit(train_set[0])
-X_train = scaler.transform(train_set[0])
-X_valid = scaler.transform(valid_set[0])
-X_test  = scaler.transform(test_set[0])
+#scaler = StandardScaler()
+#scaler.fit(train_set[0])
+#X_train = scaler.transform(train_set[0])
+#X_valid = scaler.transform(valid_set[0])
+#X_test  = scaler.transform(test_set[0])
 
 
 # random forest model scores
@@ -62,8 +72,8 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(3,15),
-            'n_estimators': (10, 100, 400)
+            'max_depth': range(10,15),
+            'n_estimators': (10, 100)
         },
         cv=5, 
         verbose=0,
