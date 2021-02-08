@@ -37,12 +37,17 @@ class ModelPrep:
         self.efficiency = efficiency
         
         # pandas read csv columnwise
-        self.data = pd.read_csv(path,sep=',')
-            
+        self.data_check = pd.read_csv(path,sep=',')
+        
+        # fix data 
+        self.data = self.data_check.groupby(self.data_check['time']).mean()
+        self.data = self.data.reset_index()
+             
         # convert to daytime-format       
         self.data['time'] = pd.to_datetime(self.data['time'])
         self.data.index = self.data['time']
         
+
         # hourly mean of each day in a year
         if self.efficiency == True:
          self.data = self.data.resample(sampler).mean()
