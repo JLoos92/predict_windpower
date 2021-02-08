@@ -1,0 +1,108 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sn
+import os 
+from sklearn.metrics import mean_squared_error
+
+# tex-style figure layout
+os.environ["PATH"] += os.pathsep + '/Library/TeX/texbin'
+pd.options.display.float_format = '{:.2f}'.format
+
+class ModelPrep:
+    '''
+    '''
+
+    def __init__(self,
+                 air_p = None,
+                 efficiency = None,
+                 sampler = None):
+    
+        '''
+    
+        '''
+    
+        path = "input/data.csv"
+        
+        
+        # set of parameters which are not included and which might be set 
+        # manually
+        
+        RS = 287.058   #gas constante for DRY air
+        
+        # sampler is by default False
+        # possibel inputs = H,D string
+        self.sampler = sampler        
+        self.air_p   = air_p
+        self.efficiency = efficiency
+        
+        # pandas read csv columnwise
+        self.data = pd.read_csv(path,sep=',')
+            
+        # convert to daytime-format       
+        self.data['time'] = pd.to_datetime(self.data['time'])
+        self.data.index = self.data['time']
+        
+        # hourly mean of each day in a year
+        if self.efficiency == True:
+         self.data = self.data.resample(sampler).mean()
+        
+        # check if NaN in dataframe if true linearly interpolate       
+        if self.data.isnull().values.any() == True:
+            self.data = self.data.interpolate()
+        
+        
+        # raw parameters from data.csv; we make use of the class object to 
+        # to call seperate parameters of the original data set
+        #self.date_time      = self.data['time']        
+        self.wind_direction = self.data['wind_direction'] 
+        self.wind_speed     = self.data['wind_speed']
+        self.temperature    = self.data['temperature']
+        self.pressure       = self.data['pressure'] #already in Pa
+        self.power_measured = self.data['power'] #/1e3 # convert to MW
+        
+        # extra variables wind vectors
+        # Convert to radians.
+        wd_rad = self.wind_direction*np.pi / 180
+        self.wind_x = self.wind_speed*np.cos(wd_rad)
+        self.wind_y = self.wind_speed*np.sin(wd_rad)
+       
+        
+        # calculate air density with PV = mRT // air_rho = P/RT
+        self.RT = self.temperature * RS        #        
+        self.air_rho = self.pressure/self.RT
+        
+        
+        
+        # only for testing! not used - but might be suitable for another input
+    def calc_power(self,
+                   c_p = None):
+        
+        '''
+        '''
+        self.c_p = c_p # betz limit at 0.59% of energy
+                
+        #Power = 0.5 x Swept Area x Air Density x Velocity3
+        # given air density (calculated) wind speed and swept area, wind energy
+        # can be calculated as following: 
+        # wind_energy_predicted = 0.5 x Swept Area x Air Density x Velocity^3
+        # here we assume a swept area of 10000
+        
+        self.power_predicted = 0.5 * 10.0 * self.air_rho * self.wind_speed**3
+        self.power_predicted = self.power_predicted * self.c_p
+    
+        # faster numpy arrays
+        self.measured = self.power_measured.to_numpy()
+        self.predicted = self.power_predicted.to_numpy()
+        
+        return self.predicted
+        
+
+
+
+
+
+
+
+
+
