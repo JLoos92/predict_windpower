@@ -47,16 +47,18 @@ valid_set = split_train_test()[1]
 test_set  = split_train_test()[2]
 
 # random forest model scores
-def rfr_model(X, y):
+def rfr_model(X, y, kick_val=False):
 
     # Perform Grid-Search
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
             'max_depth': range(3,7),
-            'n_estimators': (10, 50, 100, 500),
+            'n_estimators': (10, 50, 100),
         },
-        cv=5, scoring='neg_mean_squared_error', verbose=0, n_jobs=-1)
+        cv=5, 
+        verbose=0,
+        n_jobs=-1)
     
     grid_result = gsc.fit(X, y)
     best_params = grid_result.best_params_
@@ -66,7 +68,11 @@ def rfr_model(X, y):
      random_state=False, verbose=False)
 
     # Perform K-Fold CV
-    scores = cross_val_score(model, X, y, cv=10, scoring='neg_mean_absolute_error')
+    if kick_val == True:
+        scores = cross_val_score(model, X, y, cv=10)
+    else:
+        scores = cross_val_score(model, valid_set[0], valid_set[1], cv=10)
+
     return model, scores
 
 model_params = rfr_model(train_set[0],train_set[1])
@@ -96,7 +102,7 @@ print('R2-score:',100 * round(r2_score,4),'%.')
 # show predicts vs. measured
 plt.style.use('seaborn')
 
-#plot predictions vs. real data
+#plot predictions vs. measured
 fig3 = plt.figure(figsize=(16, 5))
 plt.plot(valid_y,label='Original')
 plt.plot(yhat,label='Predictions',linewidth=0.9,alpha=0.9)
