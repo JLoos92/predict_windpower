@@ -6,6 +6,7 @@ from sklearn.model_selection import cross_val_score, GridSearchCV
 from sklearn.metrics import r2_score,mean_squared_error
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
+import seaborn as sns
 
 # data from class
 data = ModelPrep(efficiency=None,sampler=None)
@@ -25,15 +26,15 @@ x_pressure       = data.pressure
 x_month          = data.month
 x_hour           = data.hour
 
-#keras input data, univariate input
-all_data = pd.concat([x_wind_speed,
-                     x_wind_dir_x,
-                     x_wind_dir_y,
-                     data_calc_df,
-                     x_temperature,
-                     x_pressure,
-                     x_hour,
-                     y_power_measured],
+# rolling mean for windspeed
+window = 4
+x_wind_speed_rolled = x_wind_speed.rolling(window=window, center=False).mean()
+
+#keras input data, multivariate input
+all_data = pd.concat([x_wind_dir_x[window-1:-1],
+                     x_wind_dir_y[window-1:-1],
+                     x_wind_speedroll[window-1:-1],
+                     y_power_measured[window-1:-1]],
                     axis=1)
 # define test and train data set
 
@@ -74,10 +75,10 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(5,15),
-            'n_estimators': (10,15,20,50,100),
+            'max_depth': range(5,10),
+            'n_estimators': (5,10,30),
         },
-        cv=6, 
+        cv=5, 
         verbose=0,
         n_jobs=-1,
         scoring='neg_root_mean_squared_error',
@@ -123,7 +124,7 @@ test_scores_std = gsc_results.cv_results_["std_test_score"]
 
 plt.figure()
 plt.title('Model')
-plt.xlabel('$\\alpha$ (alpha)')
+plt.xlabel('estimators')
 plt.ylabel('Score')
 # plot train scores
 plt.semilogx(train_scores_mean, label='Mean Train score',
