@@ -29,16 +29,21 @@ x_hour           = data.hour
 # rolling mean for windspeed
 window = 4
 x_wind_speed_rolled = x_wind_speed.rolling(window=window, center=False).mean()
+x_wind_dirx_rolled = x_wind_dir_x.rolling(window=window, center=False).mean()
+x_wind_diry_rolled = x_wind_dir_y.rolling(window=window, center=False).mean()
 
 #keras input data, multivariate input
-all_data = pd.concat([x_wind_dir_x[window-1:-1],
-                     x_wind_dir_y[window-1:-1],
-                     x_wind_speedroll[window-1:-1],
+all_data = pd.concat([x_wind_dirx_rolled[window-1:-1],
+                     x_wind_diry_rolled[window-1:-1],
+                     x_pressure[window-1:-1],
+                     x_temperature[window-1:-1],   
+                     x_month[window-1:-1],
+                     x_hour[window-1:-1],
                      y_power_measured[window-1:-1]],
                     axis=1)
 # define test and train data set
 
-def split_train_test(test_set_size=0.1,valid_set_size=0.1):
+def split_train_test(test_set_size=0.2,valid_set_size=0.1):
     #split 
     df_test = all_data.iloc[ int(np.floor(len(all_data)*(1-test_set_size))) : ]
     df_train_plus_valid = all_data.iloc[ : int(np.floor(len(all_data)*(1-test_set_size))) ]
@@ -75,8 +80,8 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(5,10),
-            'n_estimators': (5,10,30),
+            'max_depth': range(2,7),
+            'n_estimators': (5,10,30,50,70,100,150,200,500),
         },
         cv=5, 
         verbose=0,
