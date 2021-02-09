@@ -27,7 +27,6 @@ all_data = pd.concat([x_wind_speed,
                      x_temperature,
                      x_pressure,
                      x_hour,
-                     x_month,
                      y_power_measured],
                       axis=1)
 # define test and train data set
@@ -72,10 +71,10 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(10,15),
-            'n_estimators': (10, 100)
+            'max_depth': range(10,100),
+            'n_estimators': (10,15,20,50,100)
         },
-        cv=5, 
+        cv=6, 
         verbose=0,
         n_jobs=-1,
         scoring='neg_root_mean_squared_error')
@@ -126,7 +125,7 @@ print('R2-score:',100 * round(r2_score,4),'%.')
 print('Root Mean Squared Error:', np.sqrt(mean_squared_error(test_y, yhat)))
 print('Mean Squared Error:', mean_squared_error(test_y, yhat))  
 
-# show predicts vs. measured
+# seaborn
 plt.style.use('seaborn')
 
 #plot predictions vs. measured
