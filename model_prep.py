@@ -68,6 +68,7 @@ class ModelPrep:
         self.month          = self.data['time'].dt.month
         self.hour           = self.data['time'].dt.hour
         
+        
         # extra variables wind vectors
         # Convert to radians.
         wd_rad = self.wind_direction*np.pi / 180

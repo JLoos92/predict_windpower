@@ -10,6 +10,11 @@ from sklearn.preprocessing import StandardScaler,MinMaxScaler
 # data from class
 data = ModelPrep(efficiency=None,sampler=None)
 
+# predict max. outcome
+data_calc = data.calc_power(c_p=0.59)
+data_calc_df = pd.DataFrame(data_calc,columns=['power_pred'])
+data_calc_df = data_calc_df.set_index(data.data.index)
+
 # input data seperated
 y_power_measured = data.power_measured
 x_wind_dir_x     = data.wind_x
@@ -24,14 +29,15 @@ x_hour           = data.hour
 all_data = pd.concat([x_wind_speed,
                      x_wind_dir_x,
                      x_wind_dir_y,
+                     data_calc_df,
                      x_temperature,
                      x_pressure,
                      x_hour,
                      y_power_measured],
-                      axis=1)
+                    axis=1)
 # define test and train data set
 
-def split_train_test(test_set_size=0.2,valid_set_size=0.1):
+def split_train_test(test_set_size=0.1,valid_set_size=0.1):
     #split 
     df_test = all_data.iloc[ int(np.floor(len(all_data)*(1-test_set_size))) : ]
     df_train_plus_valid = all_data.iloc[ : int(np.floor(len(all_data)*(1-test_set_size))) ]
@@ -56,12 +62,9 @@ train_set = split_train_test()[0]
 valid_set = split_train_test()[1]
 test_set  = split_train_test()[2]
 
-## standardize X-data
-#scaler = StandardScaler()
-#scaler.fit(train_set[0])
-#X_train = scaler.transform(train_set[0])
-#X_valid = scaler.transform(valid_set[0])
-#X_test  = scaler.transform(test_set[0])
+# append for gridsearch
+train_x_cv = np.concatenate((train_set[0],valid_set[0]),axis=0)
+train_y_cv = np.concatenate((train_set[1],valid_set[1]),axis=0)
 
 
 # random forest model scores
@@ -71,20 +74,22 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(10,100),
-            'n_estimators': (10,15,20,50,100)
+            'max_depth': range(5,15),
+            'n_estimators': (10,15,20,50,100),
         },
         cv=6, 
         verbose=0,
         n_jobs=-1,
-        scoring='neg_root_mean_squared_error')
+        scoring='neg_root_mean_squared_error',
+        return_train_score=True)
     
     grid_result = gsc.fit(X, y)
     best_params = grid_result.best_params_
     
     model = RandomForestRegressor(max_depth=best_params["max_depth"],
      n_estimators=best_params["n_estimators"],
-     random_state=False, verbose=False)
+     random_state=False, 
+     verbose=False)
 
     # Perform K-Fold CV
     #if kick_val == True:
@@ -92,18 +97,56 @@ def rfr_model(X, y, kick_val=False):
     #else:
     scores = cross_val_score(model, valid_set[0], valid_set[1], cv=10, scoring='neg_root_mean_squared_error')
 
-    return model, scores, best_params
+    return model, gsc
 
-#from output
-model_params = rfr_model(train_set[0],train_set[1])
+# make gridsearch (add valdata to train data)
+model_params = rfr_model(train_x_cv,train_y_cv)
 
 # get model
 model = model_params[0]
-fitted_model = model.fit(train_set[0],train_set[1])
+gsc_results = model_params[1]
+
+# fit model
+fitted_model = model.fit(train_x_cv,train_y_cv)
 
 #validset
 test_x = test_set[0]
 test_y = test_set[1]
+
+#######################################################################################
+# Plot scoring
+
+train_scores_mean = gsc_results.cv_results_["mean_train_score"]
+train_scores_std = gsc_results.cv_results_["std_train_score"]
+test_scores_mean = gsc_results.cv_results_["mean_test_score"]
+test_scores_std = gsc_results.cv_results_["std_test_score"]
+
+plt.figure()
+plt.title('Model')
+plt.xlabel('$\\alpha$ (alpha)')
+plt.ylabel('Score')
+# plot train scores
+plt.semilogx(train_scores_mean, label='Mean Train score',
+             color='navy')
+# create a shaded area between [mean - std, mean + std]
+plt.gca().fill_between(train_scores_mean - train_scores_std,
+                       train_scores_mean + train_scores_std,
+                       alpha=0.2,
+                       color='navy')
+plt.semilogx(test_scores_mean,
+             label='Mean Test score', color='darkorange')
+
+# create a shaded area between [mean - std, mean + std]
+plt.gca().fill_between(test_scores_mean - test_scores_std,
+                       test_scores_mean + test_scores_std,
+                       alpha=0.2,
+                       color='darkorange')
+
+plt.legend(loc='best')
+plt.show()
+
+#######################################################################################
+
 
 # make prediction
 yhat = model.predict(test_x)
