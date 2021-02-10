@@ -40,7 +40,7 @@ class ModelPrep:
         self.data_check = pd.read_csv(path,sep=',')
         
         # fix data 
-        self.data = self.data_check.groupby(self.data_check['time']).mean()
+        self.data = self.data_check.groupby(self.data_check['time']).max()
         self.data = self.data.reset_index()
              
         # convert to daytime-format       
@@ -67,6 +67,7 @@ class ModelPrep:
         self.power_measured = self.data['power'] #/1e3 # convert to MW
         self.month          = self.data['time'].dt.month
         self.hour           = self.data['time'].dt.hour
+        self.day            = self.data['time'].dt.day
         
         
         # extra variables wind vectors
@@ -75,6 +76,12 @@ class ModelPrep:
         self.wind_x = self.wind_speed*np.cos(wd_rad)
         self.wind_y = self.wind_speed*np.sin(wd_rad)
        
+        # simplified wind directions
+        cut_labels = ['N', 'NE', 'E', 'SE' ,'S','SW','W','NW']
+        cut_bins = [0, 45 ,90, 135, 180, 225, 270, 315, 360]
+        self.new_wdr = pd.cut(self.wind_direction, bins=cut_bins, labels=cut_labels)
+        self.new_wdr  = pd.get_dummies(self.new_wdr,prefix='wdr')     
+
         
         # calculate air density with PV = mRT // air_rho = P/RT
         self.RT = self.temperature * RS        #        

@@ -3,10 +3,11 @@ from sklearn.ensemble import RandomForestRegressor
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import cross_val_score, GridSearchCV
-from sklearn.metrics import r2_score,mean_squared_error
+from sklearn.metrics import r2_score,mean_squared_error,make_scorer
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
 import seaborn as sns
+from sklearn.model_selection import TimeSeriesSplit
 
 # data from class
 data = ModelPrep(efficiency=None,sampler=None)
@@ -25,20 +26,23 @@ x_wind_speed     = data.wind_speed
 x_pressure       = data.pressure
 x_month          = data.month
 x_hour           = data.hour
+x_day            = data.day
+x_winddir        = data.new_wdr
 
 # rolling mean for windspeed
-window = 4
+window = 1
 x_wind_speed_rolled = x_wind_speed.rolling(window=window, center=False).mean()
 x_wind_dirx_rolled = x_wind_dir_x.rolling(window=window, center=False).mean()
 x_wind_diry_rolled = x_wind_dir_y.rolling(window=window, center=False).mean()
 
 #keras input data, multivariate input
-all_data = pd.concat([x_wind_dirx_rolled[window-1:-1],
-                     x_wind_diry_rolled[window-1:-1],
-                     x_pressure[window-1:-1],
-                     x_temperature[window-1:-1],   
+all_data = pd.concat([x_wind_dir_x[window-1:-1],
+                     x_wind_dir_y[window-1:-1],
+                     x_winddir[window-1:-1],
                      x_month[window-1:-1],
                      x_hour[window-1:-1],
+                     x_temperature[window-1:-1],
+                     x_pressure[window-1:-1],  
                      y_power_measured[window-1:-1]],
                     axis=1)
 # define test and train data set
@@ -71,7 +75,7 @@ test_set  = split_train_test()[2]
 # append for gridsearch
 train_x_cv = np.concatenate((train_set[0],valid_set[0]),axis=0)
 train_y_cv = np.concatenate((train_set[1],valid_set[1]),axis=0)
-
+tscv = TimeSeriesSplit(n_splits=2)
 
 # random forest model scores
 def rfr_model(X, y, kick_val=False):
@@ -80,8 +84,9 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(2,7),
-            'n_estimators': (5,10,30,50,70,100,150,200,500),
+            'max_depth': range(6,9),
+            'n_estimators':(20,25,30,50,70),
+            'max_features': ['auto', 'sqrt', 'log2'],
         },
         cv=5, 
         verbose=0,
@@ -103,7 +108,7 @@ def rfr_model(X, y, kick_val=False):
     #else:
     scores = cross_val_score(model, valid_set[0], valid_set[1], cv=10, scoring='neg_root_mean_squared_error')
 
-    return model, gsc
+    return model, gsc, scores, best_params
 
 # make gridsearch (add valdata to train data)
 model_params = rfr_model(train_x_cv,train_y_cv)
@@ -172,7 +177,8 @@ print('R2-score:',100 * round(r2_score,4),'%.')
 
 # RMSE and MSE
 print('Root Mean Squared Error:', np.sqrt(mean_squared_error(test_y, yhat)))
-print('Mean Squared Error:', mean_squared_error(test_y, yhat))  
+print('Mean Squared Error:', mean_squared_error(test_y, yhat)) 
+print('Best params:',model[3]) 
 
 # seaborn
 plt.style.use('seaborn')
