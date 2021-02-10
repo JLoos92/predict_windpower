@@ -71,10 +71,6 @@ winddir_discretizer = Pipeline(
                     'retbins': False})),
               ('onehot', OneHotEncoder(handle_unknown='ignore'))])
 
-preprocessor = ColumnTransformer()
-    
-    
-
 preprocessor = ColumnTransformer(
     transformers=[
         ('minmax', MinMaxScaler(), ['sum_wind_last_3_hours']),
@@ -100,7 +96,7 @@ model = GridSearchCV(pipe,
                      param_grid,
                      n_jobs=-1)
 
-scores = cross_val_score(pipe,
+scores = cross_val_score(model,
                          X=X,
                          y=y,
                          scoring='neg_root_mean_squared_error',
