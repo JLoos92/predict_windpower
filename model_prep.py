@@ -40,7 +40,7 @@ class ModelPrep:
         self.data_check = pd.read_csv(path,sep=',')
         
         # fix data 
-        self.data = self.data_check.groupby(self.data_check['time']).max()
+        self.data = self.data_check.groupby(self.data_check['time']).mean()
         self.data = self.data.reset_index()
              
         # convert to daytime-format       
@@ -68,8 +68,16 @@ class ModelPrep:
         self.month          = self.data['time'].dt.month
         self.hour           = self.data['time'].dt.hour
         self.day            = self.data['time'].dt.day
+        self.quarter        = self.data['time'].dt.quarter
+        self.minute         = self.data['time'].dt.minute    
         
-        
+        # one hot for time series
+        self.month_hot = pd.get_dummies(self.month)
+        self.hour_hot  = pd.get_dummies(self.hour)
+        self.day_hot   = pd.get_dummies(self.day)
+        self.quarter_hot = pd.get_dummies(self.quarter)
+        self.minute_hot  = pd.get_dummies(self.minute)
+
         # extra variables wind vectors
         # Convert to radians.
         wd_rad = self.wind_direction*np.pi / 180
@@ -82,7 +90,6 @@ class ModelPrep:
         self.new_wdr = pd.cut(self.wind_direction, bins=cut_bins, labels=cut_labels)
         self.new_wdr  = pd.get_dummies(self.new_wdr,prefix='wdr')     
 
-        
         # calculate air density with PV = mRT // air_rho = P/RT
         self.RT = self.temperature * RS        #        
         self.air_rho = self.pressure/self.RT
