@@ -41,7 +41,7 @@ x_quarter_hot = data.quarter_hot
 x_minute_hot  = data.minute_hot
 
 # rolling mean for windspeed
-window = 5
+window = 2
 x_wind_speed_rolled = x_wind_speed.rolling(window=window, center=False).mean()
 x_wind_dirx_rolled = x_wind_dir_x.rolling(window=window, center=False).mean()
 x_wind_diry_rolled = x_wind_dir_y.rolling(window=window, center=False).mean()
@@ -57,11 +57,12 @@ all_data = pd.concat([x_wind_dir_x[window-1:-1],
                      x_quarter_hot[window-1:-1],
                      x_temperature[window-1:-1],
                      x_pressure[window-1:-1], 
+                     data_calc_df[window-1:-1],
                      y_power_measured[window-1:-1]],
                     axis=1)
 # define test and train data set
 
-def split_train_test(test_set_size=0.1,valid_set_size=0.1):
+def split_train_test(test_set_size=0.2,valid_set_size=0.1):
     #split 
     df_test = all_data.iloc[ int(np.floor(len(all_data)*(1-test_set_size))) : ]
     df_train_plus_valid = all_data.iloc[ : int(np.floor(len(all_data)*(1-test_set_size))) ]
@@ -89,7 +90,7 @@ test_set  = split_train_test()[2]
 # append for gridsearch
 train_x_cv = np.concatenate((train_set[0],valid_set[0]),axis=0)
 train_y_cv = np.concatenate((train_set[1],valid_set[1]),axis=0)
-tscv = TimeSeriesSplit(n_splits=2)
+tscv = TimeSeriesSplit(n_splits=4)
 
 # random forest model scores
 def rfr_model(X, y, kick_val=False):
@@ -98,14 +99,16 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(5,9),
-            'n_estimators':(5,6,7,8,9,10,11),
+            'max_depth': range(6,7,8),
+            'n_estimators':range(5,15),
             'max_features': ['auto'],
+            'min_samples_leaf' : range(29,35),
+            'min_samples_split': (5,10,15)
         },
-        cv=4, 
+        cv=tscv, 
         verbose=0,
         n_jobs=-1,
-        scoring='neg_mean_squared_error',
+        scoring='neg_root_mean_squared_error',
         return_train_score=True)
     
     grid_result = gsc.fit(X, y)
@@ -113,6 +116,8 @@ def rfr_model(X, y, kick_val=False):
     
     model = RandomForestRegressor(max_depth=best_params["max_depth"],
      n_estimators=best_params["n_estimators"],
+     min_samples_leaf=best_params["min_samples_leaf"],
+     min_samples_split=best_params["min_samples_split"],
      random_state=False, 
      verbose=False)
 
@@ -120,9 +125,9 @@ def rfr_model(X, y, kick_val=False):
     #if kick_val == True:
     #    scores = cross_val_score(model, X, y, cv=10)
     #else:
-    scores = cross_val_score(model, valid_set[0], valid_set[1], cv=10, scoring='neg_root_mean_squared_error')
+    #scores = cross_val_score(model, valid_set[0], valid_set[1], cv=10, scoring='neg_root_mean_squared_error')
 
-    return model, gsc, scores, best_params
+    return model, gsc, best_params
 
 # make gridsearch (add valdata to train data)
 model_params = rfr_model(train_x_cv,train_y_cv)
