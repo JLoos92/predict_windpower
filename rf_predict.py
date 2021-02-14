@@ -3,7 +3,7 @@ from sklearn.ensemble import RandomForestRegressor
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import cross_val_score, GridSearchCV
-from sklearn.metrics import r2_score,mean_squared_error,make_scorer
+from sklearn.metrics import r2_score,mean_squared_error,make_scorer,accuracy_score
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
 import seaborn as sns
@@ -41,7 +41,7 @@ x_quarter_hot = data.quarter_hot
 x_minute_hot  = data.minute_hot
 
 # rolling mean for windspeed
-window = 2
+window = 1
 x_wind_speed_rolled = x_wind_speed.rolling(window=window, center=False).mean()
 x_wind_dirx_rolled = x_wind_dir_x.rolling(window=window, center=False).mean()
 x_wind_diry_rolled = x_wind_dir_y.rolling(window=window, center=False).mean()
@@ -49,7 +49,7 @@ x_wind_diry_rolled = x_wind_dir_y.rolling(window=window, center=False).mean()
 #keras input data, multivariate input
 all_data = pd.concat([x_wind_dir_x[window-1:-1],
                      x_wind_dir_y[window-1:-1],
-                     x_winddir[window-1:-1],
+                    # x_winddir[window-1:-1],
                      x_month_hot[window-1:-1],
                      x_minute_hot[window-1:-1],
                      x_hour_hot[window-1:-1],
@@ -90,7 +90,7 @@ test_set  = split_train_test()[2]
 # append for gridsearch
 train_x_cv = np.concatenate((train_set[0],valid_set[0]),axis=0)
 train_y_cv = np.concatenate((train_set[1],valid_set[1]),axis=0)
-tscv = TimeSeriesSplit(n_splits=4)
+tscv = TimeSeriesSplit(n_splits=2)
 
 # random forest model scores
 def rfr_model(X, y, kick_val=False):
@@ -99,7 +99,7 @@ def rfr_model(X, y, kick_val=False):
     gsc = GridSearchCV(
         estimator=RandomForestRegressor(),
         param_grid={
-            'max_depth': range(6,7,8),
+            'max_depth': range(5,8),
             'n_estimators':range(5,15),
             'max_features': ['auto'],
             'min_samples_leaf' : range(29,35),
@@ -187,8 +187,6 @@ print('Mean Absolute Error:', round(np.mean(errors), 3), 'kW.')
 
 # mape
 mape = 100 * (errors / test_set[1])
-accuracy = 100 - np.mean(mape)
-print('Accuracy:', round(accuracy, 2), '%.')
 
 # r2 score
 r2_score = r2_score(test_y,yhat)

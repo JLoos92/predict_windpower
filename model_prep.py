@@ -110,7 +110,7 @@ class ModelPrep:
         # wind_energy_predicted = 0.5 x Swept Area x Air Density x Velocity^3
         # here we assume a swept area of 10000
         
-        self.power_predicted = 0.5 * 10.0 * self.air_rho * self.wind_speed**3
+        self.power_predicted = 0.5 * 15.0 * self.air_rho * self.wind_speed**3
         self.power_predicted = self.power_predicted * self.c_p
     
         # faster numpy arrays
