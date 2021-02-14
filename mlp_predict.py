@@ -17,31 +17,53 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error,mean_absolute_error
 
 # load model; set efficiency to true to get hourly averaged data set
-model = ModelPrep(efficiency=False)
+data = ModelPrep(efficiency=None,sampler=None)
 
-#input features loaded from model
-x_wind_speed     = model.wind_speed
-x_wind_direction = model.wind_direction
-x_temperature    = model.temperature #minor
-x_pressure       = model.pressure #minor  
-yenerg           = model.power_measured
-x_air_rho        = model.air_rho #minor
+# predict max. outcome
+data_calc = data.calc_power(c_p=0.59)
+data_calc_df = pd.DataFrame(data_calc,columns=['power_pred'])
+data_calc_df = data_calc_df.set_index(data.data.index)
 
-# vector fo windspeed in x and y direction
-wind_x           = model.wind_x
-wind_y           = model.wind_y
+# input data seperated
+y_power_measured = data.power_measured
+x_wind_dir_x     = data.wind_x
+x_wind_dir_y     = data.wind_y
+x_temperature    = data.temperature
+x_wind_speed     = data.wind_speed
+x_pressure       = data.pressure
+x_month          = data.month
+x_hour           = data.hour
+x_day            = data.day
+x_winddir        = data.new_wdr
 
-#input matrix
-x_data = pd.concat([x_wind_speed,x_wind_direction],axis=1).values
-x_data = x_data.astype(float)
+# one hot
+x_hour_hot = data.hour_hot
+x_day_hot  = data.day_hot
+x_month_hot = data.month_hot
+x_quarter_hot = data.quarter_hot
+x_minute_hot  = data.minute_hot
 
-#keras input data, univariate input
-all_data = pd.concat([x_wind_speed,wind_x,wind_y,x_air_rho,yenerg],axis=1)
+# rolling mean for windspeed
+window = 1
+x_wind_speed_rolled = x_wind_speed.rolling(window=window, center=False).mean()
+x_wind_dirx_rolled = x_wind_dir_x.rolling(window=window, center=False).mean()
+x_wind_diry_rolled = x_wind_dir_y.rolling(window=window, center=False).mean()
+
+#keras input data, multivariate input
+all_data = pd.concat([x_wind_dir_x[window-1:-1],
+                     x_wind_dir_y[window-1:-1],
+                     x_pressure[window-1:-1],
+                     data_calc_df[window-1:-1],
+                     x_day[window-1:-1], 
+                     x_hour[window-1:-1],
+                     x_temperature[window-1:-1],
+                     y_power_measured[window-1:-1]],
+                    axis=1)
 
 # get training and test data
 
 # arrange data for input layers and split in train, validation and test sets
-test_set_size = 0.1 #10% test
+test_set_size = 0.2 #10% test
 valid_set_size= 0.2 #20% validation
 
 #split 
@@ -89,7 +111,8 @@ y_test  = standardize.transform(y_test)
 #set up model deepNL with 1 layer à 64 neurons, relu/sigmoid activiation function
 model = keras.Sequential([
     keras.layers.Flatten(input_shape=(X_train.shape[1],)),
-    keras.layers.Dense(64, activation=tf.nn.relu),
+    keras.layers.Dense(32, activation=tf.nn.relu),
+    keras.layers.Dense(32, activation=tf.nn.relu),
     keras.layers.Dense(1, activation=tf.nn.sigmoid),
 ])
 
@@ -99,8 +122,8 @@ model.compile(optimizer='adam',
               metrics=['accuracy']
                             )
 #parameter to change
-epochs = 40
-batch_size = 5
+epochs = 30
+batch_size = 1
 
 history = model.fit(X_train, y_train,
                     epochs=epochs, batch_size=batch_size,
@@ -124,8 +147,8 @@ fig1.savefig(path+'Loss',dpi=150,bbox_inches='tight')
 
 #plot accuracy
 fig2 = plt.figure(figsize=(16, 9))
-loss_train = history.history['acc']
-loss_val = history.history['val_acc']
+loss_train = history.history['accuracy']
+loss_val = history.history['val_accuracy']
 epochs_plot = range(1,epochs+1)
 plt.plot(epochs_plot, loss_train, 'g', label='Training accuracy')
 plt.plot(epochs_plot, loss_val, 'b',   label='validation accuracy')
