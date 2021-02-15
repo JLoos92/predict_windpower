@@ -55,7 +55,6 @@ all_data = pd.concat([x_wind_dir_x[window-1:-1],
                      x_pressure[window-1:-1],
                      data_calc_df[window-1:-1],
                      x_day[window-1:-1], 
-                     x_hour[window-1:-1],
                      x_temperature[window-1:-1],
                      y_power_measured[window-1:-1]],
                     axis=1)
@@ -111,19 +110,24 @@ y_test  = standardize.transform(y_test)
 #set up model deepNL with 1 layer à 64 neurons, relu/sigmoid activiation function
 model = keras.Sequential([
     keras.layers.Flatten(input_shape=(X_train.shape[1],)),
-    keras.layers.Dense(32, activation=tf.nn.relu),
-    keras.layers.Dense(32, activation=tf.nn.relu),
+    keras.layers.Dense(16, activation=tf.nn.relu),
+    #keras.layers.Dropout(0.2),
+    keras.layers.Dense(16, activation=tf.nn.relu),
+    keras.layers.Dense(8,activation=tf.nn.relu),
     keras.layers.Dense(1, activation=tf.nn.sigmoid),
 ])
 
+# optimizer
+opt = keras.optimizers.Adam(learning_rate=0.001)
+
 # compile model with best suitable loss function MSE and learning rate decay
-model.compile(optimizer='adam',
-              loss='mse',
+model.compile(optimizer=opt,
+              loss='mean_squared_logarithmic_error',
               metrics=['accuracy']
                             )
 #parameter to change
 epochs = 30
-batch_size = 1
+batch_size = 2
 
 history = model.fit(X_train, y_train,
                     epochs=epochs, batch_size=batch_size,
